@@ -36,6 +36,7 @@ import {
   Native,
   type NativeResult,
   Obj,
+  parseArrayIndex,
   Position,
   PromiseObj,
   readonly,
@@ -2099,6 +2100,13 @@ export class Vm {
   private execDeleteProp(fcode: Code, o: Value, key: PropertyKey, pc: number): boolean {
     const site = fcode.siteAt(pc)!
     const ref = this.resolveMember(o, key, site)
+    // A primitive base deletes from its wrapper, whose only own properties are a string's indexes and length.
+    if (!(ref instanceof ToolReference) && !(o instanceof Obj)) {
+      const index = typeof key === "symbol" ? undefined : parseArrayIndex(key)
+      const own = typeof o === "string" && (key === "length" || (index !== undefined && index < o.length))
+      if (own) throw typeError(`Cannot delete property '${String(key)}' of ${JSON.stringify(o)}.`, site)
+      return true
+    }
     if (ref instanceof ToolReference || "value" in ref || ref.receiver !== ref.target) {
       throw invalidData("Only data fields may be deleted.", site)
     }
