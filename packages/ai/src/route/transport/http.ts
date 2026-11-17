@@ -121,19 +121,23 @@ export const httpJson = <Body, Frame>(input: HttpJsonInput<Body, Frame>): HttpJs
       const http = RequestExecutor.responseHttp(response)
       const remaining = Duration.subtract(total, Duration.millis((yield* Clock.currentTimeMillis) - started))
       return {
-        frames: prepared.framing.frame(
-          RequestExecutor.responseStream(response).pipe(
+        // The chunk timeout runs on frames, not bytes, so SSE comments and keepalives don't count as progress.
+        frames: prepared.framing
+          .frame(
+            RequestExecutor.responseStream(response).pipe(
+              Stream.interruptWhen(
+                Effect.sleep(remaining).pipe(
+                  Effect.andThen(Effect.fail(timeout("read", "Timed out waiting for the response to complete", http))),
+                ),
+              ),
+            ),
+          )
+          .pipe(
             Stream.timeoutOrElse({
               duration: timeoutDuration(limits.chunk, DEFAULT_CHUNK_TIMEOUT_MS),
               orElse: () => Stream.fail(timeout("read", "Timed out waiting for response data", http)),
             }),
-            Stream.interruptWhen(
-              Effect.sleep(remaining).pipe(
-                Effect.andThen(Effect.fail(timeout("read", "Timed out waiting for the response to complete", http))),
-              ),
-            ),
           ),
-        ),
         http,
         body: prepared.framing.body,
         raw: prepared.framing.raw,
