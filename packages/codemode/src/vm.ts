@@ -2120,7 +2120,11 @@ export class Vm {
   }
 
   private execCheckBase(fcode: Code, kind: number, bx: number, regs: Array<unknown>, sp: number, pc: number): void {
-    const base = regs[kind === CheckBaseKind.READ || kind === CheckBaseKind.WRITE_ELEM ? sp - 2 : sp - 1] as Value
+    const base = regs[
+      kind === CheckBaseKind.READ || kind === CheckBaseKind.WRITE_ELEM || kind === CheckBaseKind.ASSIGN_PROP
+        ? sp - 2
+        : sp - 1
+    ] as Value
     if (base instanceof Obj && !(base instanceof PromiseObj)) return
     const site = fcode.siteAt(pc)!
     if (kind === CheckBaseKind.DESTRUCTURE) {
@@ -2134,7 +2138,7 @@ export class Vm {
       requireMemberBase(memberNode, base, regs[sp - 1] as Value)
       return
     }
-    const key = kind === CheckBaseKind.WRITE_PROP ? (fcode.consts[bx] as string) : propertyKey(regs[sp - 1] as Value)
+    const key = kind === CheckBaseKind.WRITE_ELEM ? propertyKey(regs[sp - 1] as Value) : (fcode.consts[bx] as string)
     readReference(writableReference(this.resolveMember(base, key, site), memberNode), memberNode)
   }
 
