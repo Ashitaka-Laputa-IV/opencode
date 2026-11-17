@@ -4,3 +4,4 @@
 - Program values are `Value` (`src/runtime/objects.ts`). Host values are `unknown` and enter only through `fromHost` and `fromJson`; do not widen program-facing signatures to `unknown`.
 - Each built-in object kind is one `Obj` subclass (`Wrapper` or `Opaque`) that overrides the hooks it needs. Ask the object instead of adding `instanceof` ladders.
 - The core VM, compiler, prelude, snapshot, and stdlib modules must not import `effect`; Effect lives only in the host boundary and driver (`src/runtime/`, `src/openapi/`, and the top-level tool/runtime entrypoints).
+- `packages/codemode-rust` runs and embeds the same language from Rust. The two packages must stay equally capable: a feature lands in both or neither. Its conformance expectations are generated from this package, so a behavior change here fails its CI until the Rust side matches.
