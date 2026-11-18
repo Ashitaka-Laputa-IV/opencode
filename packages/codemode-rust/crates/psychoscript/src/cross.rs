@@ -5,7 +5,7 @@
 //! meets. The walk here is a heap object (`Kind::Cross`), so a run suspended while it awaits saves it, and it spends
 //! the fuel that bytecode spends, in the same order.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use rustc_hash::FxHashSet;
 
@@ -38,7 +38,7 @@ pub struct Cross {
 /// Where a walk's result goes.
 pub enum Target {
     /// A tool call: started with the crossed arguments, or its promise rejected.
-    Tool { path: Rc<str>, promise: Id },
+    Tool { path: Arc<str>, promise: Id },
     /// `search(...)`: run with the crossed arguments, then answered to the frames it parked with `coroutine`.
     Search { coroutine: u32 },
     /// The program's result.
@@ -391,7 +391,7 @@ pub fn tool_call(vm: &mut Vm, path: &str, args: &[Value]) -> Res {
                 vm,
                 args.to_vec(),
                 Target::Tool {
-                    path: Rc::from(path),
+                    path: Arc::from(path),
                     promise: p,
                 },
             );
