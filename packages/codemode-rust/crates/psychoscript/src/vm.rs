@@ -206,7 +206,7 @@ pub struct Realm {
     pub std: crate::builtins::StdProtos,
 }
 
-pub struct Vm<'rt> {
+pub struct Vm {
     pub heap: Vec<Obj>,
     pub cells: Vec<Slot>,
     pub atoms: Strings,
@@ -234,7 +234,7 @@ pub struct Vm<'rt> {
     pub coroutines: Vec<Coroutine>,
     pub logs: Vec<String>,
     pub tool_calls: Vec<ToolCall>,
-    pub host: crate::host::RunHost<'rt>,
+    pub host: crate::host::RunHost,
     pub tool_refs: FxHashMap<Arc<str>, Id>,
     pub limits: Limits,
     pub start: Instant,
@@ -276,8 +276,8 @@ pub struct Vm<'rt> {
     json_walks: u32,
 }
 
-impl<'rt> Vm<'rt> {
-    pub fn new(host: crate::host::RunHost<'rt>, limits: Limits, atoms: Strings) -> Self {
+impl Vm {
+    pub fn new(host: crate::host::RunHost, limits: Limits, atoms: Strings) -> Self {
         let mut atoms = atoms;
         let names = Names {
             length: atoms.intern_static("length"),

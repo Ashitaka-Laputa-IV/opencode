@@ -36,6 +36,8 @@ mod tool;
 mod value;
 mod vm;
 
+use std::sync::Arc;
+
 pub use extension::{Extension, HostError, HostFunction, HostValue, SnapshotHooks};
 pub use hooks::{CallResult, ExtensionInvocation, Hooks, ToolInvocation};
 pub use program::{Program, RunOutcome, RunningCall, SuspendError, Suspended, Suspender};
@@ -122,6 +124,7 @@ pub struct Outcome {
 }
 
 /// What a runtime shares with every run it starts.
+#[derive(Clone)]
 pub(crate) struct Setup {
     pub registry: tool::Registry,
     pub hooks: Hooks,
@@ -131,18 +134,18 @@ pub(crate) struct Setup {
 
 /// Reusable runtime: tools, extensions, hooks and limits are fixed, each `execute` is an independent run.
 pub struct Runtime {
-    setup: Setup,
+    setup: Arc<Setup>,
 }
 
 impl Runtime {
     pub fn new() -> Self {
         Self {
-            setup: Setup {
+            setup: Arc::new(Setup {
                 registry: tool::Registry::default(),
                 hooks: Hooks::default(),
                 extensions: Vec::new(),
                 limits: Limits::default(),
-            },
+            }),
         }
     }
 
@@ -176,7 +179,7 @@ impl Runtime {
 
     pub fn try_with_tool(mut self, path: &str, tool: Tool) -> Result<Self, ConfigError> {
         tool::check_path(path)?;
-        self.setup.registry.insert(path, tool);
+        self.setup_mut().registry.insert(path, tool);
         Ok(self)
     }
 
@@ -190,7 +193,7 @@ impl Runtime {
         if let Err(e) = tool::check_path(path) {
             panic!("{e}");
         }
-        self.setup.registry.namespace(path, description);
+        self.setup_mut().registry.namespace(path, description);
         self
     }
 
@@ -219,12 +222,12 @@ impl Runtime {
                 )));
             }
         }
-        self.setup.extensions.push(extension);
+        self.setup_mut().extensions.push(extension);
         Ok(self)
     }
 
     pub fn hooks(mut self, hooks: Hooks) -> Self {
-        self.setup.hooks = hooks;
+        self.setup_mut().hooks = hooks;
         self
     }
 
@@ -236,7 +239,7 @@ impl Runtime {
             limits.timeout_ms != Some(0),
             "timeoutMs must be a safe integer greater than or equal to 1."
         );
-        self.setup.limits = limits;
+        self.setup_mut().limits = limits;
         self
     }
 
@@ -290,8 +293,13 @@ impl Runtime {
         Program::resume(self, &state)
     }
 
-    pub(crate) fn setup(&self) -> &Setup {
+    pub(crate) fn setup(&self) -> &Arc<Setup> {
         &self.setup
+    }
+
+    /// The setup to configure. Runs share it, so one still finishing on a worker thread keeps its own copy.
+    fn setup_mut(&mut self) -> &mut Setup {
+        Arc::make_mut(&mut self.setup)
     }
 }
 
